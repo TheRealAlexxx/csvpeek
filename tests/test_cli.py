@@ -47,7 +47,7 @@ class TestCli(unittest.TestCase):
 
     def test_no_sample(self):
         code, out, _ = self.run_cli(["-", "--rows", "0"], stdin_text=CSV)
-        self.assertNotIn("alice", out)
+        self.assertNotIn("first rows:", out)
         self.assertIn("age", out)
 
     def test_forced_delimiter(self):
