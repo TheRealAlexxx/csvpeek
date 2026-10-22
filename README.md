@@ -8,10 +8,19 @@ pandas one-liner.
 Zero dependencies. Pure standard library. Python 3.8+.
 
 ```
-$ csvpeek sales.csv
-12488 rows x 6 columns
+$ csvpeek people.csv
+3 rows x 3 columns
 
-order_id  int     0 null... 
+name  string  3 unique; top: alice (1), bob (1), cleo (1)
+age   int     3 unique; min 25; max 30; mean 27.67
+city  string  2 unique; top: london (2), paris (1)
+
+first rows:
+name   age  city
+-----  ---  ------
+alice  30   london
+bob    25   paris
+cleo   28   london
 ```
 
 ## Install
