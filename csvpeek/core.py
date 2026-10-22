@@ -55,6 +55,7 @@ def read_rows(source, delimiter=None, encoding="utf-8-sig", sample_bytes=65536):
     else:
         with open(source, "rb") as f:
             text = f.read().decode(encoding, errors="replace")
+    text = text.lstrip("\ufeff")  # a BOM is noise whether it came decoded or not
     if delimiter is None:
         delimiter = sniff_dialect(text[:sample_bytes])
     reader = csv.reader(io.StringIO(text), delimiter=delimiter)
