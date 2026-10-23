@@ -8,8 +8,22 @@ thing stays readable in an 80 column terminal.
 ELLIPSIS = "..."
 
 
+def visible(text):
+    """Make control characters visible before text reaches a terminal.
+
+    csvpeek exists to inspect untrusted CSV files. Raw control bytes in a
+    cell (ESC in particular) become live ANSI/OSC escape sequences in the
+    reader's terminal, which can clear the screen, move the cursor, or -
+    with OSC 8/52 - plant clickable hyperlinks or clipboard content.
+    Render them as printable \\xNN escapes instead.
+    """
+    return "".join(
+        c if " " <= c != "\x7f" else "\\x%02x" % ord(c) for c in text
+    )
+
+
 def fit(text, width):
-    text = str(text)
+    text = visible(str(text))
     if len(text) <= width:
         return text
     if width <= len(ELLIPSIS):

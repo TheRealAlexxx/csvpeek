@@ -52,3 +52,18 @@ class TestRender(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestVisibleEscapes(unittest.TestCase):
+    def test_control_characters_are_made_visible(self):
+        # A hostile CSV cell must not reach the terminal as live ANSI/OSC.
+        from csvpeek.report import render, fit
+        summary = {
+            "rows": 1, "cols": 1,
+            "columns": [{"name": "note", "type": "str", "nulls": 0,
+                         "unique": 1, "top": [("\x1b[2J evil", 1)]}],
+        }
+        out = render(summary, sample_rows=[["\x1b[2J evil"]], header=["note"])
+        self.assertNotIn("\x1b", out)
+        self.assertIn("\\x1b", out)
+        self.assertEqual(fit("\x1b[2J", 20), "\\x1b[2J")
