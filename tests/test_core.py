@@ -139,7 +139,7 @@ class TestEncodingAndLimits(unittest.TestCase):
                                       on_encoding=seen.append)
         self.assertEqual(header, ["name", "age"])
         self.assertEqual(len(rows), 2)
-        self.assertEqual(seen, ["utf-16-le"])
+        self.assertEqual(seen, [("utf-16-le", 0)])
 
     def test_large_field_parses_without_traceback(self):
         import io as _io
@@ -160,3 +160,23 @@ class TestEncodingAndLimits(unittest.TestCase):
         finally:
             core.FIELD_LIMIT = old_flag
             _csv.field_size_limit(old_csv_limit)
+
+
+    def test_bomless_utf16_fails_cleanly_not_garbage_success(self):
+        import io as _io
+        data = "name,age\nalice,30\n".encode("utf-16-le")  # no BOM
+        # NUL bytes in the decode make the csv module raise; we wrap it clean
+        with self.assertRaises(ValueError) as ctx:
+            core.read_rows(_io.BytesIO(data))
+        self.assertIn("could not parse the CSV", str(ctx.exception))
+
+    def test_truncated_utf16_with_bom_reports_replacements(self):
+        import io as _io
+        data = b"\xff\xfe" + "name,age\nalice,30\n".encode("utf-16-le")[:-1]
+        seen = []
+        header, rows = core.read_rows(_io.BytesIO(data), on_encoding=seen.append)
+        self.assertEqual(header, ["name", "age"])
+        self.assertEqual(len(seen), 1)
+        used, replacements = seen[0]
+        self.assertEqual(used, "utf-16-le")
+        self.assertGreater(replacements, 0)

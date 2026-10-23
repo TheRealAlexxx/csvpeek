@@ -61,12 +61,16 @@ FIELD_LIMIT = 16 * 1024 * 1024
 def decode_bytes(data, encoding):
     """Decode bytes, letting a Unicode BOM win over the requested encoding.
 
-    Returns (text, encoding_used).
+    Returns (text, encoding_used, replacements) where replacements counts
+    U+FFFD characters the decode had to invent - a sign the file is
+    truncated or not really in that encoding.
     """
     for bom, enc in _BOMS:
         if data.startswith(bom):
-            return data.decode(enc, errors="replace"), enc
-    return data.decode(encoding, errors="replace"), encoding
+            text = data.decode(enc, errors="replace")
+            return text, enc, text.count("\ufffd")
+    text = data.decode(encoding, errors="replace")
+    return text, encoding, text.count("\ufffd")
 
 
 def read_rows(source, delimiter=None, encoding="utf-8-sig", sample_bytes=65536,
@@ -74,20 +78,22 @@ def read_rows(source, delimiter=None, encoding="utf-8-sig", sample_bytes=65536,
     """Read a CSV/TSV into (header, rows). utf-8-sig eats a BOM for free.
 
     source: a path or a file-like object of text.
-    on_encoding: optional callback fired with the actual encoding when a BOM
-    made it differ from the requested one.
+    on_encoding: optional callback fired with a single
+    (encoding_used, replacement_count) tuple when a BOM made the encoding differ from the
+    requested one, or when decoding had to invent replacement characters
+    (a truncated or misencoded file). Neither condition is silent.
     """
     if hasattr(source, "read"):
         raw = source.read()
         if isinstance(raw, bytes):
-            text, used = decode_bytes(raw, encoding)
+            text, used, replacements = decode_bytes(raw, encoding)
         else:
-            text, used = raw, encoding
+            text, used, replacements = raw, encoding, 0
     else:
         with open(source, "rb") as f:
-            text, used = decode_bytes(f.read(), encoding)
-    if on_encoding and used != encoding:
-        on_encoding(used)
+            text, used, replacements = decode_bytes(f.read(), encoding)
+    if on_encoding and (used != encoding or replacements):
+        on_encoding((used, replacements))
     text = text.lstrip("\ufeff")  # a BOM is noise whether it came decoded or not
     if delimiter is None:
         delimiter = sniff_dialect(text[:sample_bytes])

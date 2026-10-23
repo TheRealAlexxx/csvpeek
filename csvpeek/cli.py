@@ -28,9 +28,15 @@ def main(argv=None):
     delimiter = args.delimiter
     if delimiter and delimiter.upper() == "TAB":
         delimiter = "\t"
-    def note_encoding(used):
-        print("csvpeek: note: BOM says %s; using it instead of %s"
-              % (used, args.encoding), file=sys.stderr)
+    def note_encoding(info):
+        used, replacements = info
+        if used != args.encoding:
+            print("csvpeek: note: BOM says %s; using it instead of %s"
+                  % (used, args.encoding), file=sys.stderr)
+        if replacements:
+            print("csvpeek: warning: %d undecodable byte(s) replaced with "
+                  "U+FFFD - the file is truncated or misencoded; output "
+                  "may be incomplete" % replacements, file=sys.stderr)
     try:
         if args.file == "-":
             header, rows = core.read_rows(sys.stdin, delimiter=delimiter)
