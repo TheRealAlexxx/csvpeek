@@ -7,6 +7,8 @@ pandas one-liner.
 
 Zero dependencies. Pure standard library. Python 3.8+.
 
+![csvpeek inspecting an orders CSV: column types, null counts, stats and sample rows](screenshot.png)
+
 ```
 $ csvpeek people.csv
 3 rows x 3 columns
