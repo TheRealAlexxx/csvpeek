@@ -128,3 +128,35 @@ class TestSummarize(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestEncodingAndLimits(unittest.TestCase):
+    def test_utf16_bom_is_detected_not_misparsed(self):
+        import io as _io
+        data = "name,age\nalice,30\nbob,25\n".encode("utf-16-le")
+        seen = []
+        header, rows = core.read_rows(_io.BytesIO(b"\xff\xfe" + data),
+                                      on_encoding=seen.append)
+        self.assertEqual(header, ["name", "age"])
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(seen, ["utf-16-le"])
+
+    def test_large_field_parses_without_traceback(self):
+        import io as _io
+        big = "x" * 200_000
+        header, rows = core.read_rows(_io.StringIO('a,b\n1,"' + big + '"\n'))
+        self.assertEqual(rows[0][1], big)
+
+    def test_oversize_field_is_a_clean_value_error(self):
+        import csv as _csv
+        import io as _io
+        old_flag = core.FIELD_LIMIT
+        old_csv_limit = _csv.field_size_limit(128)
+        core.FIELD_LIMIT = 256  # max(128, 256) < 2048, so the field trips it
+        try:
+            with self.assertRaises(ValueError) as ctx:
+                core.read_rows(_io.StringIO('a\n"' + "x" * 2048 + '"\n'))
+            self.assertIn("could not parse the CSV", str(ctx.exception))
+        finally:
+            core.FIELD_LIMIT = old_flag
+            _csv.field_size_limit(old_csv_limit)

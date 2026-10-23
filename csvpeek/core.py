@@ -43,23 +43,63 @@ def sniff_dialect(sample, fallback=","):
     return best
 
 
-def read_rows(source, delimiter=None, encoding="utf-8-sig", sample_bytes=65536):
+# Unicode BOMs that override the requested encoding: a UTF-16 file decoded as
+# UTF-8 does not fail loudly, it decodes into NUL-interleaved garbage that then
+# "parses" as one nonsense column.
+_BOMS = (
+    (b"\xff\xfe\x00\x00", "utf-32-le"),
+    (b"\x00\x00\xfe\xff", "utf-32-be"),
+    (b"\xff\xfe", "utf-16-le"),
+    (b"\xfe\xff", "utf-16-be"),
+)
+
+# Real CSVs can hold big fields; the csv module default (128 KiB) is not a
+# data policy. 16 MiB, overridable in tests.
+FIELD_LIMIT = 16 * 1024 * 1024
+
+
+def decode_bytes(data, encoding):
+    """Decode bytes, letting a Unicode BOM win over the requested encoding.
+
+    Returns (text, encoding_used).
+    """
+    for bom, enc in _BOMS:
+        if data.startswith(bom):
+            return data.decode(enc, errors="replace"), enc
+    return data.decode(encoding, errors="replace"), encoding
+
+
+def read_rows(source, delimiter=None, encoding="utf-8-sig", sample_bytes=65536,
+              on_encoding=None):
     """Read a CSV/TSV into (header, rows). utf-8-sig eats a BOM for free.
 
     source: a path or a file-like object of text.
+    on_encoding: optional callback fired with the actual encoding when a BOM
+    made it differ from the requested one.
     """
     if hasattr(source, "read"):
-        text = source.read()
-        if isinstance(text, bytes):
-            text = text.decode(encoding, errors="replace")
+        raw = source.read()
+        if isinstance(raw, bytes):
+            text, used = decode_bytes(raw, encoding)
+        else:
+            text, used = raw, encoding
     else:
         with open(source, "rb") as f:
-            text = f.read().decode(encoding, errors="replace")
+            text, used = decode_bytes(f.read(), encoding)
+    if on_encoding and used != encoding:
+        on_encoding(used)
     text = text.lstrip("\ufeff")  # a BOM is noise whether it came decoded or not
     if delimiter is None:
         delimiter = sniff_dialect(text[:sample_bytes])
     reader = csv.reader(io.StringIO(text), delimiter=delimiter)
-    rows = [row for row in reader if any(cell.strip() for cell in row)]
+    old_limit = csv.field_size_limit()
+    try:
+        csv.field_size_limit(max(old_limit, FIELD_LIMIT))
+        rows = [row for row in reader if any(cell.strip() for cell in row)]
+    except csv.Error as e:
+        raise ValueError("could not parse the CSV: %s" % e) from e
+    finally:
+        csv.field_size_limit(old_limit)
     if not rows:
         return [], []
     header = [h.strip() or "column %d" % (i + 1) for i, h in enumerate(rows[0])]

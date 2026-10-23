@@ -28,13 +28,21 @@ def main(argv=None):
     delimiter = args.delimiter
     if delimiter and delimiter.upper() == "TAB":
         delimiter = "\t"
+    def note_encoding(used):
+        print("csvpeek: note: BOM says %s; using it instead of %s"
+              % (used, args.encoding), file=sys.stderr)
     try:
         if args.file == "-":
             header, rows = core.read_rows(sys.stdin, delimiter=delimiter)
         else:
-            header, rows = core.read_rows(args.file, delimiter=delimiter, encoding=args.encoding)
+            header, rows = core.read_rows(args.file, delimiter=delimiter,
+                                          encoding=args.encoding,
+                                          on_encoding=note_encoding)
     except OSError as e:
         print("csvpeek: cannot read %s: %s" % (args.file, e), file=sys.stderr)
+        return 2
+    except ValueError as e:
+        print("csvpeek: %s" % e, file=sys.stderr)
         return 2
     if not header:
         print("csvpeek: %s is empty" % args.file, file=sys.stderr)
