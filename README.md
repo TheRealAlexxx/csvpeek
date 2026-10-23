@@ -37,6 +37,14 @@ python -m csvpeek yourfile.csv
 
 ## Use it
 
+No data handy? A messy sample file ships in the repo:
+
+```
+csvpeek examples/messy.csv   # nulls, quoted commas, mixed types
+```
+
+
+
 ```
 csvpeek data.csv              # the full report
 csvpeek data.csv --rows 10    # show ten sample rows instead of five

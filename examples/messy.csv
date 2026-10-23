@@ -1,0 +1,7 @@
+name,age,signup,score,active
+alice,30,2024-01-15,9.5,true
+bob,,2024-02-30,7.25,false
+cleo,28,n/a,?,true
+"dave, jr",41,2024-03-01,-,true
+erin,25,2024-03-05,8.0,maybe
+frank,NA,2024-03-09,6.75,false
